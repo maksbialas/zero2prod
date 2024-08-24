@@ -1,5 +1,6 @@
 use std::net::{SocketAddr, TcpListener};
 
+use once_cell::sync::Lazy;
 use reqwest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio;
@@ -7,7 +8,13 @@ use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSetting},
     startup::run,
+    telemetry::{get_subscriber, init_subscriber},
 };
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let subscriber = get_subscriber("test".to_owned(), "debug".to_owned(), std::io::sink);
+    init_subscriber(subscriber);
+});
 
 pub struct TestApp {
     pub address: SocketAddr,
@@ -15,6 +22,8 @@ pub struct TestApp {
 }
 
 async fn spawn_app() -> TestApp {
+    Lazy::force(&TRACING);
+
     let mut config = get_configuration().expect("Failed to read configuration");
     config.database.database_name = Uuid::new_v4().to_string();
 
